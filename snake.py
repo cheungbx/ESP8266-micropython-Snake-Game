@@ -1,5 +1,5 @@
 # ----------------------------------------------------------
-#  Snake Game Ported from gamebuino META circuit pythong to
+#  Snake Game Ported from gamebuino META circuit python to
 #  ESP8266 (node MCU D1 mini)  micropython
 # by Billy Cheung  2019 08 31
 #
@@ -36,6 +36,7 @@
 import machine
 import network
 import utime
+from utime import sleep_us, ticks_ms, ticks_us, ticks_diff
 import time
 from time import sleep
 from machine import Pin, I2C,PWM
@@ -299,14 +300,18 @@ def drawDot(x, y, color):
     display.fill_rect(OX + x * SNAKE_SIZE, OY + y * SNAKE_SIZE, SNAKE_SIZE, SNAKE_SIZE,color)
 
 def waitForUpdate():
-    sleep (0.05)
-    return
-
+    # wait the amount of them that makes up 30 frame per second
+    timer_dif = 1000000/30 - ticks_diff(ticks_us(), timer)
+    if timer_dif > 0:
+        sleep_us(timer_dif)
+        return
 
 # ----------------------------------------------------------
 # Initialization
 # ----------------------------------------------------------
 
+# Seed random numbers
+seed(ticks_us())
 
 game = {
     'mode':    MODE_START,
@@ -331,6 +336,7 @@ apple = { 'x': 0, 'y': 0 }
 # ----------------------------------------------------------
 
 while True:
-    waitForUpdate()
+    timer = ticks_us()
     tick()
+    waitForUpdate()
     
