@@ -1,9 +1,9 @@
 # ----------------------------------------------------------
-#  Snake Game Ported from gamebuino META circuit python to
+#  Snake Game 
 #  ESP8266 (node MCU D1 mini)  micropython
 # by Billy Cheung  2019 08 31
 #
-# ESP8266 game console GPIO pins layout
+
 #
 # I2C OLED SSD1306 
 # GPIO4   D2---  SDA OLED
@@ -18,31 +18,13 @@
 # GPIO14  D5——  UP     
 # GPIO2   D4——   Down    
 # GPIO0   D3——   A
-# =====================================
-# Original notes from the author
-#
-# Gamebuino Academy Workshop
-# https://gamebuino.com/academy/workshop/learn-to-code-a-snake-game-with-python
-# ----------------------------------------------------------
-# This game is based on the CircuitPython environment, which
-# is an implementation of the Python language specific to
-# microcontrollers. CircuitPython runs on the SAMD21G18
-# architecture of the Gamebuino META.
-# ----------------------------------------------------------
-# Author: Steph
-# Date: April 2019
-# ----------------------------------------------------------
-
-import machine
-import network
+import gc
+gc.collect()
+print (gc.mem_free())
 import utime
 from utime import sleep_us, ticks_ms, ticks_us, ticks_diff
-import time
-from time import sleep
 from machine import Pin, I2C,PWM
 
-import os
-import sys
 import ssd1306
 from random import getrandbits, seed
 
@@ -70,7 +52,7 @@ MODE_START    = 0
 MODE_READY    = 1
 MODE_PLAY     = 2
 MODE_LOST     = 3
-
+MODE_EXIT     = 4
 
 
 # configure oled display I2C SSD1306
@@ -161,6 +143,8 @@ def tick():
             playTone('c4', 500, 1)
             game['mode'] = MODE_LOST
             game['refresh'] = True
+    elif game['mode'] == MODE_EXIT:
+        return
     else:
         handleButtons()
 
@@ -173,7 +157,12 @@ def spawnApple():
     apple['y'] = getrandbits (7) % (ROWS - 1)
 
 def handleButtons():
-    if not btnLeft.value() :
+    if game['mode'] == MODE_LOST :
+        if not btnA.value():
+            game['mode'] = MODE_START
+        elif not btnLeft.value():
+            game['mode'] = MODE_EXIT 
+    elif not btnLeft.value() :
         dirSnake(-1, 0)
     elif not btnRight.value() :
         dirSnake(1, 0)
@@ -181,8 +170,8 @@ def handleButtons():
         dirSnake(0, -1)
     elif not btnDown.value() :
         dirSnake(0, 1)
-    elif game['mode'] == MODE_LOST and not btnA.value():
-        game['mode'] = MODE_START
+    
+
 
 # ----------------------------------------------------------
 # Snake management
@@ -255,7 +244,9 @@ def didSnakeHitTheWall():
 # ----------------------------------------------------------
 
 def draw():
-    if game['refresh']:
+    if game['mode'] == MODE_LOST:
+        drawGameover()
+    elif game['refresh']:
         clearScreen()
         drawWalls()
         drawSnake()
@@ -268,7 +259,12 @@ def draw():
 def clearScreen():
     color = COLOR_LOST_BG if game['mode'] == MODE_LOST else COLOR_BG
     display.fill(color)
-
+def drawGameover():
+    display.fill_rect(10,20,100,35,0)
+    display.text("GAME OVER",20,20,1)
+    display.text("A to Play",20,30,1)    
+    display.text("L to Stop",20,40,1)
+ 
 def drawWalls():
     color = COLOR_LOST_FG if game['mode'] == MODE_LOST else COLOR_WALL
     display.rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT,color)
@@ -303,8 +299,9 @@ def waitForUpdate():
     # wait the amount of them that makes up 30 frame per second
     timer_dif = 1000000/30 - ticks_diff(ticks_us(), timer)
     if timer_dif > 0:
-        sleep_us(timer_dif)
-        return
+      sleep_us(timer_dif)
+    return
+
 
 # ----------------------------------------------------------
 # Initialization
@@ -334,9 +331,8 @@ apple = { 'x': 0, 'y': 0 }
 # ----------------------------------------------------------
 # Main loop
 # ----------------------------------------------------------
+while game['mode'] != MODE_EXIT :
+  timer = ticks_us()
+  tick()
+  waitForUpdate()
 
-while True:
-    timer = ticks_us()
-    tick()
-    waitForUpdate()
-    
