@@ -16,7 +16,7 @@
 # Speaker
 # GPIO15  D8     Speaker
 #
-#buttons
+# Buttons
 # GPIO12  D6——  Left  
 # GPIO13  D7——  Right      
 # GPIO14  D5——  UP     
@@ -36,6 +36,13 @@
 # Speaker
 # GPIO15  D8     Speaker
 #
-#buttons  A0
+# Buttons sensed through ADC  A0 by voltage divider
 # A0 VCC-10K0-U-10K-L-10K-R-10K-D-10K-GND 
+#
+# U = 207 +/20
+# L = 394 +/- 20
+# R = 584 +/- 20
+# D = 847 +/- 20
+#
+# Buttons read directly 
 # GPIO0   D3——   A
