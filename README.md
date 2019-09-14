@@ -1,11 +1,13 @@
-# ESP8266-micropython-Snake-Game
-# A snake game written on ESP8266 micropython using I2C OLED SSD1306, buzzer and push buttons
-# ----------------------------------------------------------
-#  Snake Game Ported from gamebuino META circuit python to
+## ----------------------------------------------------------
+#  Snake.py Game for or I2C OLED,  Snakes.py for SPI OLED
 #  ESP8266 (node MCU D1 mini)  micropython
 # by Billy Cheung  2019 08 31
 #
-# ESP8266 game console GPIO pins layout
+# ----------------------------------------------------------
+# 
+# ----------------------------------------------------------
+# snake.py pin layout
+# ----------------------------------------------------------
 #
 # I2C OLED SSD1306 
 # GPIO4   D2---  SDA OLED
@@ -20,17 +22,20 @@
 # GPIO14  D5——  UP     
 # GPIO2   D4——   Down    
 # GPIO0   D3——   A
-# =====================================
-# Original notes from the author
+# ----------------------------------------------------------
+# snakes.py pin layout
+# ----------------------------------------------------------
+# SPI OLED SSD1306 
+# GND
+# VCC
+# D0/Sck - D5 (=GPIO14=HSCLK)
+# D1/SDA - D7 (=GPIO13=HMOSI)
+# RES    - D0 (=GPIO16)
+# DC     - D4 (=GPIO2)
+# CS     - D1 (=GPIO5)
+# Speaker
+# GPIO15  D8     Speaker
 #
-# Gamebuino Academy Workshop
-# https://gamebuino.com/academy/workshop/learn-to-code-a-snake-game-with-python
-# ----------------------------------------------------------
-# This game is based on the CircuitPython environment, which
-# is an implementation of the Python language specific to
-# microcontrollers. CircuitPython runs on the SAMD21G18
-# architecture of the Gamebuino META.
-# ----------------------------------------------------------
-# Author: Steph
-# Date: April 2019
-# ----------------------------------------------------------
+#buttons  A0
+# A0 VCC-10K0-U-10K-L-10K-R-10K-D-10K-GND 
+# GPIO0   D3——   A
