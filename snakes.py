@@ -48,11 +48,12 @@ COLOR_APPLE   = 1
 COLOR_SCORE   = 1
 COLOR_LOST_BG = 1
 COLOR_LOST_FG = 0
-MODE_START    = 0
-MODE_READY    = 1
-MODE_PLAY     = 2
-MODE_LOST     = 3
-MODE_EXIT     = 4
+MODE_MENU     = 0
+MODE_START    = 1
+MODE_READY    = 2
+MODE_PLAY     = 3
+MODE_LOST     = 4
+MODE_EXIT     = 5
 
 
 # configure oled display I2C SSD1306
@@ -62,34 +63,60 @@ display = ssd1306.SSD1306_SPI(128, 64, hspi, Pin(2), Pin(16), Pin(5))
 
 
 #--------- pin layout
-btn_val=[0, 207, 394, 584, 847]
+#btn_val=[0, 207, 394, 584, 847]
+btn_val=[113, 300, 490, 715,935]
 
 btnUp = 1
 btnLeft = 2
 btnRight = 3
 btnDown = 4
 btnA = 12
+btnB = 13
 pinA = Pin(0, Pin.IN, Pin.PULL_UP)
+pinB = Pin(4, Pin.IN, Pin.PULL_UP)
 buzzer = Pin(15, Pin.OUT)
 adc = ADC(0)
 
-def pressed (btn, wait_release=False) :
-  if btn != btnA :
+def pressed (btn=0, wait_release=False) :
+
+       
+  if btn < btnA :
     a0=adc.read()
-    if (a0 > btn_val[btn]-20) and (a0 < btn_val[btn]+20):
-      while wait_release and  ((a0 < btn_val[btn]-20) or (a0 > btn_val[btn]+20)):
-        sleep_ms (5)
-      return True   
-    
-  elif not pinA.value():
-    sleep_ms (1)
-    if pinA.value():
-      return False
-    #wait for key release
-    while wait_release and not btn.value() :
-      sleep_ms (5)
-    return True
-  return False
+    if btn ==0 :
+        j = 1
+        k = 5
+    else :
+        j = btn
+        k = btn+1
+    for i in range (j,k) :
+      if (a0 > btn_val[i-1]) and (a0 < btn_val[i]):
+        while wait_release and adc.read() > btn_val[1]:
+          sleep_ms (30)
+        return i  
+    if not pinA.value():
+        return btnA
+    elif not pinB.value():
+        return btnB
+    return 0
+  elif btn == btnA:
+      if not pinA.value():
+        sleep_ms (1)
+        if pinA.value():
+          return 0
+          #wait for key release
+        while wait_release and not pinA.value():
+          sleep_ms (5)
+        return btn
+  elif btn == btnB:
+      if not pinB.value():
+        sleep_ms (1)
+        if pinB.value():
+          return 0
+        #wait for key release
+        while wait_release and not pinB.value():
+          sleep_ms (5)
+        return btn
+  return 0
 
 
 tones = {
@@ -135,21 +162,7 @@ def tick():
     if not game['refresh']:
         clearSnakeTail()
     
-    if game['mode'] == MODE_START:
-        resetSnake()
-        spawnApple()
-        game['mode'] = MODE_READY
-        game['score'] = 0
-        game['time']  = 0
-    elif game['mode'] == MODE_READY:
-        game['refresh'] = False
- 
-        handleButtons()
-        moveSnake()
-        if snakeHasMoved():
-            playTone('c5', 100, 0.5)
-            game['mode'] = MODE_PLAY
-    elif game['mode'] == MODE_PLAY:
+    if game['mode'] == MODE_PLAY:
         handleButtons()
         moveSnake()
         if game['refresh']:
@@ -166,6 +179,23 @@ def tick():
             playTone('c4', 500, 1)
             game['mode'] = MODE_LOST
             game['refresh'] = True
+    elif game['mode'] == MODE_LOST:
+        sleep_ms(2000)
+        game['mode'] = MODE_MENU
+    elif game['mode'] == MODE_START:
+        resetSnake()
+        spawnApple()
+        game['mode'] = MODE_READY
+        game['score'] = 0
+        game['time']  = 0
+    elif game['mode'] == MODE_READY:
+        game['refresh'] = False
+ 
+        handleButtons()
+        moveSnake()
+        if snakeHasMoved():
+            playTone('c5', 100, 0.5)
+            game['mode'] = MODE_PLAY
     elif game['mode'] == MODE_EXIT:
         return
     else:
@@ -180,19 +210,26 @@ def spawnApple():
     apple['y'] = getrandbits (7) % (ROWS - 1)
 
 def handleButtons():
-    if game['mode'] == MODE_LOST :
-        if pressed(btnA):
-            game['mode'] = MODE_START
-        elif pressed(btnLeft):
-            game['mode'] = MODE_EXIT 
-    elif pressed(btnLeft) :
+  if game['mode'] != MODE_MENU :
+    btn=pressed()
+    if btn==btnLeft:
         dirSnake(-1, 0)
-    elif pressed(btnRight) :
+    elif btn==btnRight:
         dirSnake(1, 0)
-    elif pressed(btnUp) :
+    elif btn==btnUp:
         dirSnake(0, -1)
-    elif pressed(btnDown):
+    elif btn==btnDown:
         dirSnake(0, 1)
+  else :
+    if pressed(btnA,True):
+      game['mode'] = MODE_START    
+      game['frame'] = 15 
+    elif pressed(btnB,True):
+      game['mode'] = MODE_START
+      game['frame'] = 22 
+    elif pressed(btnLeft,True):
+      game['mode'] = MODE_EXIT
+
     
 
 
@@ -267,7 +304,9 @@ def didSnakeHitTheWall():
 # ----------------------------------------------------------
 
 def draw():
-    if game['mode'] == MODE_LOST:
+    if game['mode'] == MODE_MENU:
+        drawGameMenu()  
+    elif game['mode'] == MODE_LOST:
         drawGameover()
     elif game['refresh']:
         clearScreen()
@@ -282,11 +321,16 @@ def draw():
 def clearScreen():
     color = COLOR_LOST_BG if game['mode'] == MODE_LOST else COLOR_BG
     display.fill(color)
+def drawGameMenu():
+    clearScreen();
+    display.text("SNAKE",35,10,1)
+    display.text("A - SLOW",20,20,1)    
+    display.text("B - FAST",20,30,1)    
+    display.text("L - EXIT",20,40,1)
 def drawGameover():
-    display.fill_rect(10,20,100,35,0)
+    display.fill_rect(20,20,100,30,0)
     display.text("GAME OVER",20,20,1)
-    display.text("A to Play",20,30,1)    
-    display.text("L to Stop",20,40,1)
+
  
 def drawWalls():
     color = COLOR_LOST_FG if game['mode'] == MODE_LOST else COLOR_WALL
@@ -320,7 +364,7 @@ def drawDot(x, y, color):
 
 def waitForUpdate():
     # wait the amount of them that makes up 30 frame per second
-    timer_dif = int(1000/30) - ticks_diff(ticks_ms(), timer)
+    timer_dif = int(1000/game['frame']) - ticks_diff(ticks_ms(), timer)
     if timer_dif > 0:
       sleep_ms(timer_dif)
     return
@@ -334,9 +378,10 @@ def waitForUpdate():
 seed(ticks_us())
 
 game = {
-    'mode':    MODE_START,
+    'mode':    MODE_MENU,
     'score':   0,
     'time':    0,
+    'frame':   15,
     'refresh': True
 }
 
@@ -358,6 +403,7 @@ while game['mode'] != MODE_EXIT :
   timer = ticks_ms()
   tick()
   waitForUpdate()
+
 
 
 
