@@ -56,68 +56,100 @@ MODE_LOST     = 4
 MODE_EXIT     = 5
 
 
-# configure oled display I2C SSD1306
+# configure oled display SPI SSD1306
 hspi = SPI(1, baudrate=8000000, polarity=0, phase=0)
 #DC, RES, CS 
 display = ssd1306.SSD1306_SPI(128, 64, hspi, Pin(2), Pin(16), Pin(5)) 
 
+#---buttons
 
-#--------- pin layout
-#btn_val=[0, 207, 394, 584, 847]
-btn_val=[113, 300, 490, 715,935]
+btnU = 1
+btnL = 2
+btnR = 3
+btnD = 4
+btnA = 5
+btnB = 6
 
-btnUp = 1
-btnLeft = 2
-btnRight = 3
-btnDown = 4
-btnA = 12
-btnB = 13
-pinA = Pin(0, Pin.IN, Pin.PULL_UP)
-pinB = Pin(4, Pin.IN, Pin.PULL_UP)
+Btns = 0
+lastBtns = 0
+
+pinBtn = Pin(0, Pin.OUT)
+pinPaddle = Pin(4, Pin.OUT)
+
+
 buzzer = Pin(15, Pin.OUT)
+
 adc = ADC(0)
 
-def pressed (btn=0, wait_release=False) :
+def getPaddle () :
+  pinPaddle.on() 
+  pinBtn.off() 
+  sleep_ms(20)
+  return adc.read()
+  
+def pressed (btn, waitRelease=False) :
+  global Btns
+  if waitRelease :
+    pinPaddle.off() 
+    pinBtn.on() 
+    while ADC(0).read() > 70 :
+       sleep_ms (20)
+  return (Btns & 1 << btn)
+  
+def lastpressed (btn) :
+  global lastBtns
+  return (lastBtns & 1 << btn)
 
-       
-  if btn < btnA :
-    a0=adc.read()
-    if btn ==0 :
-        j = 1
-        k = 5
+
+def getBtn () :
+  global Btns
+  global lastBtns
+  pinPaddle.off()
+  pinBtn.on()
+  lastBtns = Btns
+  Btns = 0
+  a0=ADC(0).read()
+  if a0  < 564 :
+    if a0 < 361 :
+      if a0 > 192 :
+        if a0 > 278 :
+          Btns |= 1 << btnU | 1 << btnA
+        else :
+          Btns |= 1 << btnL        
+      else:
+        if a0 > 70 :
+          Btns |= 1 << btnU
     else :
-        j = btn
-        k = btn+1
-    for i in range (j,k) :
-      if (a0 > btn_val[i-1]) and (a0 < btn_val[i]):
-        while wait_release and adc.read() > btn_val[1]:
-          sleep_ms (30)
-        return i  
-    if not pinA.value():
-        return btnA
-    elif not pinB.value():
-        return btnB
-    return 0
-  elif btn == btnA:
-      if not pinA.value():
-        sleep_ms (1)
-        if pinA.value():
-          return 0
-          #wait for key release
-        while wait_release and not pinA.value():
-          sleep_ms (5)
-        return btn
-  elif btn == btnB:
-      if not pinB.value():
-        sleep_ms (1)
-        if pinB.value():
-          return 0
-        #wait for key release
-        while wait_release and not pinB.value():
-          sleep_ms (5)
-        return btn
-  return 0
-
+      if a0 > 482 :
+        if a0 > 527 :
+          Btns |= 1 << btnD   
+        else :
+          Btns |= 1 << btnU | 1 << btnB 
+      else:  
+        if a0 > 440 :
+          Btns |= 1 << btnL | 1 << btnA 
+        else :
+          Btns |= 1 << btnR   
+  else:
+      if a0 < 728 :
+        if a0 < 653 :
+          if a0 > 609 :
+            Btns |= 1 << btnD | 1 << btnA 
+          else :
+            Btns |= 1 << btnR | 1 << btnA 
+        elif a0 > 675 :
+          Btns |= 1 << btnA  
+        else :
+          Btns |= 1 << btnL | 1 << btnB
+      elif a0 < 829 :
+        if a0 > 794 :
+          Btns |= 1 << btnD | 1 << btnB
+        else : 
+          Btns |= 1 << btnR | 1 << btnB  
+      elif a0 > 857 : 
+        Btns |= 1 << btnB            
+      else :
+        Btns |= 1 << btnA | 1 << btnB    
 
 tones = {
     'c4': 262,
@@ -210,15 +242,15 @@ def spawnApple():
     apple['y'] = getrandbits (7) % (ROWS - 1)
 
 def handleButtons():
+  getBtn()
   if game['mode'] != MODE_MENU :
-    btn=pressed()
-    if btn==btnLeft:
+    if pressed(btnL):
         dirSnake(-1, 0)
-    elif btn==btnRight:
+    elif pressed(btnR):
         dirSnake(1, 0)
-    elif btn==btnUp:
+    elif pressed(btnU):
         dirSnake(0, -1)
-    elif btn==btnDown:
+    elif pressed(btnD):
         dirSnake(0, 1)
   else :
     if pressed(btnA,True):
@@ -227,7 +259,7 @@ def handleButtons():
     elif pressed(btnB,True):
       game['mode'] = MODE_START
       game['frame'] = 22 
-    elif pressed(btnLeft,True):
+    elif pressed(btnL,True):
       game['mode'] = MODE_EXIT
 
     
@@ -403,6 +435,7 @@ while game['mode'] != MODE_EXIT :
   timer = ticks_ms()
   tick()
   waitForUpdate()
+
 
 
 
