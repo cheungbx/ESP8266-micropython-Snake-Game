@@ -1,9 +1,9 @@
 # ----------------------------------------------------------
-#  Snake Game 
-#  ESP8266 (node MCU D1 mini)  micropython
+# Snakes Game
+# ESP8266 (node MCU D1 mini)  micropython
 # by Billy Cheung  2019 08 31
 #
-# SPI OLED 
+# SPI OLED
 # GND
 # VCC
 # D0/Sck - D5 (=GPIO14=HSCLK)
@@ -19,61 +19,34 @@
 # GPIO4    D2——   On to read ADC for Paddle
 #
 # buttons   A0
-# A0 VCC-9K-U-9K-L-12K-R-9K-D-9K-A-12K-B-9K-GND 
-
+# A0 VCC-9K-U-9K-L-12K-R-9K-D-9K-A-12K-B-9K-GND
 import gc
+import sys
 gc.collect()
 print (gc.mem_free())
+import network
 import utime
-from utime import sleep_ms, ticks_ms, ticks_us, ticks_diff
+from utime import sleep_ms,ticks_ms, ticks_us, ticks_diff
 from machine import Pin, SPI, PWM, ADC
-
+from math import sqrt
 import ssd1306
 from random import getrandbits, seed
 
-# ----------------------------------------------------------
-# Global variables
-# ----------------------------------------------------------
-
-SCREEN_WIDTH  = 128
-SCREEN_HEIGHT = 64
-SNAKE_SIZE    = 4
-SNAKE_LENGTH  = 4
-SNAKE_EXTENT  = 2
-COLS          = (SCREEN_WIDTH  - 4) // SNAKE_SIZE
-ROWS          = (SCREEN_HEIGHT - 4) // SNAKE_SIZE
-OX            = (SCREEN_WIDTH  - COLS * SNAKE_SIZE) // 2
-OY            = (SCREEN_HEIGHT - ROWS * SNAKE_SIZE) // 2
-COLOR_BG      = 0
-COLOR_WALL    = 1
-COLOR_SNAKE   = 1
-COLOR_APPLE   = 1
-COLOR_SCORE   = 1
-COLOR_LOST_BG = 1
-COLOR_LOST_FG = 0
-MODE_MENU     = 0
-MODE_START    = 1
-MODE_READY    = 2
-MODE_PLAY     = 3
-MODE_LOST     = 4
-MODE_EXIT     = 5
-
-
 # configure oled display SPI SSD1306
 hspi = SPI(1, baudrate=8000000, polarity=0, phase=0)
-#DC, RES, CS 
-display = ssd1306.SSD1306_SPI(128, 64, hspi, Pin(2), Pin(16), Pin(0)) 
+#DC, RES, CS
+display = ssd1306.SSD1306_SPI(128, 64, hspi, Pin(2), Pin(16), Pin(0))
 
 
 
 #---buttons
 
-btnU = 1
-btnL = 2
-btnR = 3
-btnD = 4
-btnA = 5
-btnB = 6
+btnU = const (1 << 1)
+btnL = const (1 << 2)
+btnR = const (1 << 3)
+btnD = const (1 << 4)
+btnA = const (1 << 5)
+btnB = const (1 << 6)
 
 Btns = 0
 lastBtns = 0
@@ -87,23 +60,23 @@ buzzer = Pin(15, Pin.OUT)
 adc = ADC(0)
 
 def getPaddle () :
-  pinPaddle.on() 
-  pinBtn.off() 
+  pinPaddle.on()
+  pinBtn.off()
   sleep_ms(20)
   return adc.read()
-  
+
 def pressed (btn, waitRelease=False) :
   global Btns
-  if waitRelease :
-    pinPaddle.off() 
-    pinBtn.on() 
+  if waitRelease and Btns :
+    pinPaddle.off()
+    pinBtn.on()
     while ADC(0).read() > 70 :
        sleep_ms (20)
-  return (Btns & 1 << btn)
-  
+  return (Btns & btn)
+
 def lastpressed (btn) :
   global lastBtns
-  return (lastBtns & 1 << btn)
+  return (lastBtns & btn)
 
 
 def getBtn () :
@@ -118,43 +91,44 @@ def getBtn () :
     if a0 < 361 :
       if a0 > 192 :
         if a0 > 278 :
-          Btns |= 1 << btnU | 1 << btnA
+          Btns |= btnU | btnA
         else :
-          Btns |= 1 << btnL        
+          Btns |= btnL
       else:
         if a0 > 70 :
-          Btns |= 1 << btnU
+          Btns |= btnU
     else :
       if a0 > 482 :
         if a0 > 527 :
-          Btns |= 1 << btnD   
+          Btns |= btnD
         else :
-          Btns |= 1 << btnU | 1 << btnB 
-      else:  
+          Btns |= btnU | btnB
+      else:
         if a0 > 440 :
-          Btns |= 1 << btnL | 1 << btnA 
+          Btns |= btnL | btnA
         else :
-          Btns |= 1 << btnR   
+          Btns |= btnR
   else:
       if a0 < 728 :
         if a0 < 653 :
           if a0 > 609 :
-            Btns |= 1 << btnD | 1 << btnA 
+            Btns |= btnD | btnA
           else :
-            Btns |= 1 << btnR | 1 << btnA 
+            Btns |= btnR | btnA
         elif a0 > 675 :
-          Btns |= 1 << btnA  
+          Btns |= btnA
         else :
-          Btns |= 1 << btnL | 1 << btnB
+          Btns |= btnL | btnB
       elif a0 < 829 :
         if a0 > 794 :
-          Btns |= 1 << btnD | 1 << btnB
-        else : 
-          Btns |= 1 << btnR | 1 << btnB  
-      elif a0 > 857 : 
-        Btns |= 1 << btnB            
+          Btns |= btnD | btnB
+        else :
+          Btns |= btnR | btnB
+      elif a0 > 857 :
+        Btns |= btnB
       else :
-        Btns |= 1 << btnA | 1 << btnB    
+        Btns |= btnA | btnB
+
 
 tones = {
     'c4': 262,
@@ -191,6 +165,34 @@ def playTone(tone, tone_duration, total_duration):
             beeper.deinit()
             utime.sleep_ms(int(total_duration * 1000)-tone_duration)
             
+# ----------------------------------------------------------
+# Global variables
+# ----------------------------------------------------------
+
+SCREEN_WIDTH  = 128
+SCREEN_HEIGHT = 64
+SNAKE_SIZE    = 4
+SNAKE_LENGTH  = 4
+SNAKE_EXTENT  = 2
+COLS          = (SCREEN_WIDTH  - 4) // SNAKE_SIZE
+ROWS          = (SCREEN_HEIGHT - 4) // SNAKE_SIZE
+OX            = (SCREEN_WIDTH  - COLS * SNAKE_SIZE) // 2
+OY            = (SCREEN_HEIGHT - ROWS * SNAKE_SIZE) // 2
+COLOR_BG      = 0
+COLOR_WALL    = 1
+COLOR_SNAKE   = 1
+COLOR_APPLE   = 1
+COLOR_SCORE   = 1
+COLOR_LOST_BG = 1
+COLOR_LOST_FG = 0
+MODE_MENU     = 0
+MODE_START    = 1
+MODE_READY    = 2
+MODE_PLAY     = 3
+MODE_LOST     = 4
+MODE_EXIT     = 5
+
+
 # ----------------------------------------------------------
 # Game management
 # ----------------------------------------------------------
@@ -249,13 +251,13 @@ def spawnApple():
 def handleButtons():
   getBtn()
   if game['mode'] != MODE_MENU :
-    if pressed(btnL):
+    if Btns & btnL:
         dirSnake(-1, 0)
-    elif pressed(btnR):
+    elif Btns & btnR:
         dirSnake(1, 0)
-    elif pressed(btnU):
+    elif Btns & btnU:
         dirSnake(0, -1)
-    elif pressed(btnD):
+    elif Btns & btnD:
         dirSnake(0, 1)
   else :
     if pressed(btnA,True):
@@ -440,6 +442,8 @@ while game['mode'] != MODE_EXIT :
   timer = ticks_ms()
   tick()
   waitForUpdate()
+
+
 
 
 
