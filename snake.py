@@ -1,5 +1,5 @@
 # ----------------------------------------------------------
-#  Snake Game 
+#  Snake Game I2C OLED
 #  ESP8266 (node MCU D1 mini)  micropython
 # by Billy Cheung  2019 08 31
 #
@@ -22,8 +22,8 @@ import gc
 gc.collect()
 print (gc.mem_free())
 import utime
-from utime import sleep_us, ticks_ms, ticks_us, ticks_diff
-from machine import Pin, I2C,PWM
+from utime import sleep_us, sleep_ms, ticks_ms, ticks_us, ticks_diff
+from machine import Pin, I2C,PWM, ADC
 
 import ssd1306
 from random import getrandbits, seed
@@ -32,43 +32,41 @@ from random import getrandbits, seed
 # Global variables
 # ----------------------------------------------------------
 
-SCREEN_WIDTH  = 128
-SCREEN_HEIGHT = 64
-SNAKE_SIZE    = 4
-SNAKE_LENGTH  = 4
-SNAKE_EXTENT  = 2
-COLS          = (SCREEN_WIDTH  - 4) // SNAKE_SIZE
-ROWS          = (SCREEN_HEIGHT - 4) // SNAKE_SIZE
-OX            = (SCREEN_WIDTH  - COLS * SNAKE_SIZE) // 2
-OY            = (SCREEN_HEIGHT - ROWS * SNAKE_SIZE) // 2
-COLOR_BG      = 0
-COLOR_WALL    = 1
-COLOR_SNAKE   = 1
-COLOR_APPLE   = 1
-COLOR_SCORE   = 1
-COLOR_LOST_BG = 1
-COLOR_LOST_FG = 0
-MODE_START    = 0
-MODE_READY    = 1
-MODE_PLAY     = 2
-MODE_LOST     = 3
-MODE_EXIT     = 4
+SCREEN_WIDTH  = const(128)
+SCREEN_HEIGHT = const(64)
+
 
 
 # configure oled display I2C SSD1306
 i2c = I2C(-1, Pin(5), Pin(4))   # SCL, SDA
 display = ssd1306.SSD1306_I2C(128, 64, i2c)
+# ESP8266 ADC A0 values 0-1023
 
 #--------- pin layout
 
-btnLeft = Pin(12, Pin.IN, Pin.PULL_UP)
-btnRight = Pin(13, Pin.IN, Pin.PULL_UP)
-btnUp = Pin(14, Pin.IN, Pin.PULL_UP)
-btnDown = Pin(2, Pin.IN, Pin.PULL_UP)
+btnL = Pin(12, Pin.IN, Pin.PULL_UP)
+btnR = Pin(13, Pin.IN, Pin.PULL_UP)
+btnU = Pin(14, Pin.IN, Pin.PULL_UP)
+btnD = Pin(2, Pin.IN, Pin.PULL_UP)
 btnA = Pin(0, Pin.IN, Pin.PULL_UP)
 buzzer = Pin(15, Pin.OUT)
 
+def getBtn() :
+  pass
 
+def pressed (btn, wait_release=False) :
+  if not btn.value():
+    if btn.value():
+      return False
+    #wait for key release
+    while wait_release and not btn.value() :
+      sleep_ms (5)
+    return True
+  return False
+
+def getPaddle (maxvalue=1024) :
+  return int (ADC(0).read() / (1024 / maxvalue))
+  
 tones = {
     'c4': 262,
     'd4': 294,
@@ -107,6 +105,25 @@ def playTone(tone, tone_duration, total_duration):
 # ----------------------------------------------------------
 # Game management
 # ----------------------------------------------------------
+SNAKE_SIZE    = 4
+SNAKE_LENGTH  = 4
+SNAKE_EXTENT  = 2
+COLS          = (SCREEN_WIDTH  - 4) // SNAKE_SIZE
+ROWS          = (SCREEN_HEIGHT - 4) // SNAKE_SIZE
+OX            = (SCREEN_WIDTH  - COLS * SNAKE_SIZE) // 2
+OY            = (SCREEN_HEIGHT - ROWS * SNAKE_SIZE) // 2
+COLOR_BG      = 0
+COLOR_WALL    = 1
+COLOR_SNAKE   = 1
+COLOR_APPLE   = 1
+COLOR_SCORE   = 1
+COLOR_LOST_BG = 1
+COLOR_LOST_FG = 0
+MODE_START    = 0
+MODE_READY    = 1
+MODE_PLAY     = 2
+MODE_LOST     = 3
+MODE_EXIT     = 4
 
 def tick():
     if not game['refresh']:
@@ -158,19 +175,19 @@ def spawnApple():
 
 def handleButtons():
     if game['mode'] == MODE_LOST :
-        if not btnA.value():
+        if pressed(btnA):
             game['mode'] = MODE_START
-        elif not btnLeft.value():
-            game['mode'] = MODE_EXIT 
-    elif not btnLeft.value() :
+        elif pressed(btnL):
+            game['mode'] = MODE_EXIT
+    elif pressed(btnL) :
         dirSnake(-1, 0)
-    elif not btnRight.value() :
+    elif pressed(btnR) :
         dirSnake(1, 0)
-    elif not btnUp.value() :
+    elif pressed(btnU):
         dirSnake(0, -1)
-    elif not btnDown.value() :
+    elif pressed(btnD) :
         dirSnake(0, 1)
-    
+
 
 
 # ----------------------------------------------------------
@@ -335,4 +352,5 @@ while game['mode'] != MODE_EXIT :
   timer = ticks_us()
   tick()
   waitForUpdate()
+
 
