@@ -158,12 +158,17 @@ tones = {
     ' ': 0
 }
 
+def playTone(tone, tone_duration, rest_duration=0):
+  beeper = PWM(buzzer, freq=tones[tone], duty=512)
+  utime.sleep_ms(tone_duration)
+  beeper.deinit()
+  utime.sleep_ms(rest_duration)
 
-def playTone(tone, tone_duration, total_duration):
-            beeper = PWM(buzzer, freq=tones[tone], duty=512)
-            utime.sleep_ms(tone_duration)
-            beeper.deinit()
-            utime.sleep_ms(int(total_duration * 1000)-tone_duration)
+def playSound(freq, tone_duration, rest_duration=0):
+  beeper = PWM(buzzer, freq, duty=512)
+  utime.sleep_ms(tone_duration)
+  beeper.deinit()
+  utime.sleep_ms(rest_duration)
             
 # ----------------------------------------------------------
 # Global variables
@@ -207,15 +212,15 @@ def tick():
         if game['refresh']:
             game['refresh'] = False
         if didSnakeEatApple():
-            playTone('d6', 20, 0.02)
-            playTone('c5', 20, 0.02)
-            playTone('f4', 20, 0.02)
+            playTone('d6', 20)
+            playTone('c5', 20)
+            playTone('f4', 20)
             game['score'] += 1
             game['refresh'] = True
             extendSnakeTail()
             spawnApple()
         if didSnakeBiteItsTail() or didSnakeHitTheWall():
-            playTone('c4', 500, 1)
+            playTone('c4', 500)
             game['mode'] = MODE_LOST
             game['refresh'] = True
     elif game['mode'] == MODE_LOST:
@@ -233,7 +238,7 @@ def tick():
         handleButtons()
         moveSnake()
         if snakeHasMoved():
-            playTone('c5', 100, 0.5)
+            playTone('c5', 100)
             game['mode'] = MODE_PLAY
     elif game['mode'] == MODE_EXIT:
         return
@@ -442,6 +447,7 @@ while game['mode'] != MODE_EXIT :
   timer = ticks_ms()
   tick()
   waitForUpdate()
+
 
 
 
